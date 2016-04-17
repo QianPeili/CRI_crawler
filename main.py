@@ -12,7 +12,7 @@ from multiprocessing.dummy import Pool
 menu_url = 'http://newsradio.cri.cn/other/2014/jmd14.html'
 yesterday = date.today() - timedelta(days=1)
 date_str = yesterday.strftime('%Y-%m-%d')
-directory = 'd:\\cri\\%s\\' % date_str
+root_dir = 'c:/cri/'
 pattern = re.compile('(http.*mp3)')
 
 try:
@@ -21,16 +21,21 @@ try:
         if 'date' in opt[0]:
             date_str = opt[1]
         elif 'output' in opt[0]:
-            directory = opt[1] + date_str + '\\'
+            root_dir = opt[1]
 except getopt.GetoptError:
     pass
+
+
+directory = os.path.join(root_dir, date_str+'/')
+# mkdir if directoty not exists
+if os.path.exists(directory) is Fale:
+    os.mkdir(directory)
 
 
 class Crawler(object):
 
     def __init__(self):
         super(Crawler, self).__init__()
-        os.system('mkdir %s' % directory)
         self.opener = self.get_opener()
         self.pattern = re.compile(r'(http:.*%s.*mp3)' % date_str)
         self.index = 1
