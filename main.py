@@ -9,6 +9,7 @@ from urlparse import urljoin
 from multiprocessing.dummy import Pool
 
 
+menu_url = 'http://newsradio.cri.cn/other/2014/jmd14.html'
 yesterday = date.today() - timedelta(days=1)
 date_str = yesterday.strftime('%Y-%m-%d')
 directory = 'd:\\cri\\%s\\' % date_str
@@ -26,49 +27,57 @@ except getopt.GetoptError:
 
 class Crawler(object):
 
-    def __init__(day, directory):
+    def __init__(self):
         super(Crawler, self).__init__()
         os.system('mkdir %s' % directory)
+        self.opener = self.get_opener()
+        self.pattern = re.compile(r'(http:.*%s.*mp3)' % date_str)
+        self.index = 1
 
-    def get_opener():
-        pass
+    def get_opener(self):
+        proxy_handler = urllib2.ProxyHandler({})
+        opener = urllib2.build_opener(proxy_handler)
+        return opener
 
-os.system('mkdir %s' % directory)
-proxy_handler = urllib2.ProxyHandler({})
-opener = urllib2.build_opener(proxy_handler)
-menu_url = 'http://newsradio.cri.cn/other/2014/jmd14.html'
-page = opener.open(menu_url).read()
-soup = BeautifulSoup(page)
+    def start(self):
+        page = self.opener.open(menu_url).read()
+        soup = BeautifulSoup(page)
+        tr_tags = soup.findAll('tr', {'class': 'a03'})
 
-index = 2
-tr_tags = soup.findAll('tr', {'class': 'a03'})
-p = re.compile(r'(http:.*%s.*mp3)' % date_str)
+        pool = Pool()
+        try:
+            map(self.download_mp3, tr_tags)
+        except Exception:
+            raise
+        pool.close()
 
-def find_mp3_uri(l):
-    for e in l:
-        m = p.search(e['href'])
-        if m:
-            record_href = m.groups()[0]
-            return record_href
-    else:
-        return None
+    def download_mp3(self, tr_tag):
+        a_tag = tr_tag.findAll('td')[self.index].a
+        href = urljoin(menu_url, a_tag['href'])
+        sub_soup = BeautifulSoup(self.opener.open(href).read())
+        a_list = sub_soup.findAll('a')
+        title = '%s' % a_tag.text
 
-def save_data_in_mp3(uri, title):
-    file_path = os.path.join(directory, '%s.mp3' % title)
-    f = open(file_path, 'wb')
-    d = opener.open(uri)
-    f.write(d.read())
-    f.close()
+        mp3_uri = self.find_mp3_uri(a_list)
+        if mp3_uri:
+            self.save_data_in_mp3(mp3_uri, title)
 
-def download_mp3(tr_tag):
-    a_tag = tr_tag.findAll('td')[index].a
-    href = urljoin(menu_url, a_tag['href'])
-    sub_soup = BeautifulSoup(opener.open(href).read())
-    a_list = sub_soup.findAll('a')
-    title = '%s' % a_tag.text
+    def find_mp3_uri(self, l):
+        for e in l:
+            m = self.pattern.search(e['href'])
+            if m:
+                record_href = m.groups()[0]
+                return record_href
+        else:
+            return None
 
-    mp3_uri = find_mp3_uri(a_list)
-    if mp3_uri:
-        save_data_in_mp3(mp3_uri, title)
+    def save_data_in_mp3(self, uri, title):
+        file_path = os.path.join(directory, '%s.mp3' % title)
+        f = open(file_path, 'wb')
+        d = self.opener.open(uri).read()
+        f.write(d)
+        f.close()    
 
-
+if __name__ == '__main__':
+    crawler = Crawler()
+    crawler.start()
