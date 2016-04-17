@@ -13,6 +13,7 @@ menu_url = 'http://newsradio.cri.cn/other/2014/jmd14.html'
 yesterday = date.today() - timedelta(days=1)
 date_str = yesterday.strftime('%Y-%m-%d')
 directory = 'd:\\cri\\%s\\' % date_str
+pattern = re.compile('(http.*mp3)')
 
 try:
     opts, args = getopt.getopt(sys.argv[1:], '', ['help', 'date=', 'output='])
@@ -42,25 +43,28 @@ class Crawler(object):
     def start(self):
         page = self.opener.open(menu_url).read()
         soup = BeautifulSoup(page)
-        tr_tags = soup.findAll('tr', {'class': 'a03'})
+        self.soup = soup
+        div_tag = soup.find('div', {'class': 'box3'})
+        a_tags = div_tag.findAll('a')
+        hrefs = map(lambda x: urljoin(menu_url, x['href']), a_tags)
 
-        pool = Pool()
-        try:
-            map(self.download_mp3, tr_tags)
-        except Exception:
-            raise
+        pool = Pool(8)
+        map(self.download_mp3, hrefs)
         pool.close()
 
-    def download_mp3(self, tr_tag):
-        a_tag = tr_tag.findAll('td')[self.index].a
-        href = urljoin(menu_url, a_tag['href'])
-        sub_soup = BeautifulSoup(self.opener.open(href).read())
-        a_list = sub_soup.findAll('a')
-        title = '%s' % a_tag.text
-
-        mp3_uri = self.find_mp3_uri(a_list)
-        if mp3_uri:
-            self.save_data_in_mp3(mp3_uri, title)
+    def download_mp3(self, href):
+        # some url are invalid
+        try:
+            sub_soup = BeautifulSoup(self.opener.open(href).read())
+        except IOError:
+            print href + 'not found'
+            return
+        a_tag = sub_soup.find('div', {'class': 'rg'}).a
+        source_uri = pattern.search(a_tag['href']).groups()[0]
+        tmp_uri = urljoin(menu_url, source_uri)
+        mp3_uri = re.sub('\d{4}-\d{2}-\d{2}', date_str, tmp_uri)
+        title = re.sub('\d{4}-\d{2}-\d{2}', date_str, a_tag.text)
+        self.save_data_in_mp3(mp3_uri, title)
 
     def find_mp3_uri(self, l):
         for e in l:
@@ -72,9 +76,13 @@ class Crawler(object):
             return None
 
     def save_data_in_mp3(self, uri, title):
+        try:
+            d = self.opener.open(uri).read()
+        except IOError:
+            print uri + ' not exist.'
+            return
         file_path = os.path.join(directory, '%s.mp3' % title)
         f = open(file_path, 'wb')
-        d = self.opener.open(uri).read()
         f.write(d)
         f.close()    
 
