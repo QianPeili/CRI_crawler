@@ -1,0 +1,15 @@
+astroid==1.4.5
+beautifulsoup4==4.4.1
+colorama==0.3.7
+decorator==4.0.9
+ipython==4.1.2
+ipython-genutils==0.1.0
+lazy-object-proxy==1.2.2
+pathlib2==2.1.0
+pickleshare==0.7.2
+pylint==1.5.5
+pyreadline==2.1
+simplegeneric==0.8.1
+six==1.10.0
+traitlets==4.2.1
+wrapt==1.10.8
