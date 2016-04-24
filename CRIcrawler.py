@@ -28,7 +28,7 @@ except getopt.GetoptError:
 
 directory = os.path.join(root_dir, date_str+'/')
 # mkdir if directoty not exists
-if os.path.exists(directory) is Fale:
+if os.path.exists(directory) is not True:
     os.mkdir(directory)
 
 
@@ -89,8 +89,8 @@ class Crawler(object):
         file_path = os.path.join(directory, '%s.mp3' % title)
         f = open(file_path, 'wb')
         f.write(d)
-        f.close()    
+        f.close()
 
-if __name__ == '__main__':
+def main():
     crawler = Crawler()
     crawler.start()
