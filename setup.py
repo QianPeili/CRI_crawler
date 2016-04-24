@@ -9,5 +9,9 @@ setup(
     license='MIT',
     packages=find_packages(),
     py_modules=['CRIcrawler'],
-    install_requires=['beautifulsoup4>=4.4.1']
-    )
+    install_requires=['beautifulsoup4>=4.4.1'],
+    entry_points={
+        "console_scripts": [
+            "CRIcrawler=CRIcrawler:main"
+        ]},
+)
