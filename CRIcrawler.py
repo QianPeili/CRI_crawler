@@ -3,6 +3,7 @@ import re
 import getopt
 import sys
 import os
+
 from datetime import date, timedelta
 from bs4 import BeautifulSoup
 from urlparse import urljoin
@@ -23,7 +24,7 @@ try:
         elif 'output' in opt[0]:
             root_dir = opt[1]
 except getopt.GetoptError:
-    pass
+    exit(0)
 
 
 directory = os.path.join(root_dir, date_str+'/')
@@ -47,22 +48,22 @@ class Crawler(object):
 
     def start(self):
         page = self.opener.open(menu_url).read()
-        soup = BeautifulSoup(page)
+        soup = BeautifulSoup(page, 'html.parser')
         self.soup = soup
         div_tag = soup.find('div', {'class': 'box3'})
         a_tags = div_tag.findAll('a')
         hrefs = map(lambda x: urljoin(menu_url, x['href']), a_tags)
 
         pool = Pool(8)
-        map(self.download_mp3, hrefs)
+        pool.map(self.download_mp3, hrefs)
         pool.close()
 
     def download_mp3(self, href):
         # some url are invalid
         try:
-            sub_soup = BeautifulSoup(self.opener.open(href).read())
+            sub_soup = BeautifulSoup(self.opener.open(href).read(), 'html.parser')
         except IOError:
-            print href + 'not found'
+            print href + ' not found'
             return
         a_tag = sub_soup.find('div', {'class': 'rg'}).a
         source_uri = pattern.search(a_tag['href']).groups()[0]
@@ -90,7 +91,13 @@ class Crawler(object):
         f = open(file_path, 'wb')
         f.write(d)
         f.close()
+        print uri + ' download successfully.'
 
 def main():
+    print 'Download start...'
     crawler = Crawler()
     crawler.start()
+    print 'Quest done!'
+
+if __name__ == '__main__':
+    main()
