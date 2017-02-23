@@ -1,4 +1,3 @@
-import urllib2
 import re
 import getopt
 import sys
@@ -6,8 +5,8 @@ import os
 
 from datetime import date, timedelta
 from bs4 import BeautifulSoup
-from urlparse import urljoin
 from multiprocessing.dummy import Pool
+from urllib.request import ProxyHandler, build_opener, urljoin
 
 
 menu_url = 'http://newsradio.cri.cn/other/2014/jmd14.html'
@@ -42,8 +41,8 @@ class Crawler(object):
         self.index = 1
 
     def get_opener(self):
-        proxy_handler = urllib2.ProxyHandler({})
-        opener = urllib2.build_opener(proxy_handler)
+        proxy_handler = ProxyHandler({})
+        opener = build_opener(proxy_handler)
         return opener
 
     def start(self):
@@ -63,7 +62,7 @@ class Crawler(object):
         try:
             sub_soup = BeautifulSoup(self.opener.open(href).read(), 'html.parser')
         except IOError:
-            print href + ' not found'
+            print(href + ' not found')
             return
         a_tag = sub_soup.find('div', {'class': 'rg'}).a
         source_uri = pattern.search(a_tag['href']).groups()[0]
@@ -85,19 +84,20 @@ class Crawler(object):
         try:
             d = self.opener.open(uri).read()
         except IOError:
-            print uri + ' not exist.'
+            print(uri + ' not exist.')
             return
         file_path = os.path.join(directory, '%s.mp3' % title)
         f = open(file_path, 'wb')
         f.write(d)
         f.close()
-        print uri + ' download successfully.'
+        print(uri + ' download successfully.')
+
 
 def main():
-    print 'Download start...'
+    print('Download start...')
     crawler = Crawler()
     crawler.start()
-    print 'Quest done!'
+    print('Quest done!')
 
 if __name__ == '__main__':
     main()
