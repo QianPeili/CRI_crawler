@@ -9,52 +9,76 @@ from multiprocessing.dummy import Pool
 from urllib.request import ProxyHandler, build_opener, urljoin
 
 
-menu_url = 'http://newsradio.cri.cn/other/2014/jmd14.html'
-yesterday = date.today() - timedelta(days=1)
-date_str = yesterday.strftime('%Y-%m-%d')
-root_dir = 'c:/cri/'
-pattern = re.compile('(http.*mp3)')
+def get_opt_value():
+    """
+    get opt value
+    :return:
+    """
 
-try:
-    opts, args = getopt.getopt(sys.argv[1:], '', ['help', 'date=', 'output='])
-    for opt in opts:
-        if 'date' in opt[0]:
-            date_str = opt[1]
-        elif 'output' in opt[0]:
-            root_dir = opt[1]
-except getopt.GetoptError:
-    exit(0)
-
-
-directory = os.path.join(root_dir, date_str+'/')
-# mkdir if directoty not exists
-if os.path.exists(directory) is not True:
-    os.mkdir(directory)
+    date_str = root_dir = None
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], '', ['help', 'date=', 'output='])
+        for opt in opts:
+            if 'date' in opt[0]:
+                date_str = opt[1]
+            elif 'output' in opt[0]:
+                root_dir = opt[1]
+    except getopt.GetoptError:
+        exit(0)
+    else:
+        return date_str, root_dir
 
 
 class Crawler(object):
 
-    def __init__(self):
+    menu_url = 'http://newsradio.cri.cn/other/2014/jmd14.html'
+    default_dir = "./"
+
+    def __init__(self, date_str, root_dir):
         super(Crawler, self).__init__()
+        if not date_str:
+            date_str = self.default_date_str
+        if not root_dir:
+            root_dir = self.default_dir
+
+        self.date_str = date_str
+        self.directory = self.get_output_dir(root_dir)
+
         self.opener = self.get_opener()
-        self.pattern = re.compile(r'(http:.*%s.*mp3)' % date_str)
+        self.pattern = re.compile(r'(http:.*%s.*mp3)' % date)
         self.index = 1
 
-    def get_opener(self):
+        page = self.opener.open(self.menu_url).read()
+        soup = BeautifulSoup(page, 'html.parser')
+        self.soup = soup
+
+    @property
+    def default_date_str(self):
+        yesterday = date.today() - timedelta(days=1)
+        result = yesterday.strftime('%Y-%m-%d')
+        return result
+
+    def get_output_dir(self, root_dir):
+        directory = os.path.join(root_dir, self.date_str + '/')
+
+        # create new directory if directory not exists
+        if os.path.exists(directory) is not True:
+            os.mkdir(directory)
+        return directory
+
+    @staticmethod
+    def get_opener():
         proxy_handler = ProxyHandler({})
         opener = build_opener(proxy_handler)
         return opener
 
     def start(self):
-        page = self.opener.open(menu_url).read()
-        soup = BeautifulSoup(page, 'html.parser')
-        self.soup = soup
-        div_tag = soup.find('div', {'class': 'box3'})
+        div_tag = self.soup.find('div', {'class': 'box3'})
         a_tags = div_tag.findAll('a')
-        hrefs = map(lambda x: urljoin(menu_url, x['href']), a_tags)
+        href_list = map(lambda x: urljoin(self.menu_url, x['href']), a_tags)
 
         pool = Pool(8)
-        pool.map(self.download_mp3, hrefs)
+        pool.map(self.download_mp3, href_list)
         pool.close()
 
     def download_mp3(self, href):
@@ -65,10 +89,11 @@ class Crawler(object):
             print(href + ' not found')
             return
         a_tag = sub_soup.find('div', {'class': 'rg'}).a
+        pattern = re.compile('(http.*mp3)')
         source_uri = pattern.search(a_tag['href']).groups()[0]
-        tmp_uri = urljoin(menu_url, source_uri)
-        mp3_uri = re.sub('\d{4}-\d{2}-\d{2}', date_str, tmp_uri)
-        title = re.sub('\d{4}-\d{2}-\d{2}', date_str, a_tag.text)
+        tmp_uri = urljoin(self.menu_url, source_uri)
+        mp3_uri = re.sub('\d{4}-\d{2}-\d{2}', self.date_str, tmp_uri)
+        title = re.sub('\d{4}-\d{2}-\d{2}', self.date_str, a_tag.text)
         self.save_data_in_mp3(mp3_uri, title)
 
     def find_mp3_uri(self, l):
@@ -86,7 +111,7 @@ class Crawler(object):
         except IOError:
             print(uri + ' not exist.')
             return
-        file_path = os.path.join(directory, '%s.mp3' % title)
+        file_path = os.path.join(self.directory, '%s.mp3' % title)
         f = open(file_path, 'wb')
         f.write(d)
         f.close()
@@ -95,7 +120,8 @@ class Crawler(object):
 
 def main():
     print('Download start...')
-    crawler = Crawler()
+    date_str, output = get_opt_value()
+    crawler = Crawler(date_str, output)
     crawler.start()
     print('Quest done!')
 
